@@ -1,0 +1,105 @@
+---
+title: "Simulation"
+output: 
+  html_document:
+    theme: flatly
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# set a seed value
+set.seed(123)
+```
+
+# 1. Samples
+Sample 100 samples from a standard normal distribution.
+Example study: a school with a 1000 students, IQ is measured (mean 100, sd = 15).
+This study is replicated a 100 times. 
+
+```{r}
+n <- 1000
+mu <- 100
+s <- 15
+samples <- replicate(100, rnorm(n, mean = mu, sd = s))
+```
+
+
+# 2. Statistics 
+For each of these samples, calculate the following statistics for the mean
+
+Absolute bias:
+
+$$|\bar{x} - \mu| $$
+  
+  
+  
+Standard error of the mean: 
+
+$$\sigma_\bar{x}  = \frac{\sigma}{\sqrt{n}}$$
+
+
+
+Where $\sigma = \sqrt{\frac{1}{n} \Sigma(x_i - \mu)^2}$
+
+
+
+Lower and upper bound of the 95% confidence interval: 
+
+$$ \bar{x} \pm 1.96 \frac{\sigma}{\sqrt{n}} $$
+
+
+
+
+```{r}
+# retry
+info <- function(x){
+  m <- mean(x)
+  sem <- sd(x)/sqrt(n)
+  output <- c(
+    m,
+    abs(m - mu),
+    sem,
+    m - 1.96*sem,
+    m + 1.96*sem)
+    
+    return(output)
+}
+
+results2 <- t(apply(samples, 2, info))
+colnames(results2) <- c("Mean", "bias", "sem", "lb", "ub")
+results2 <- data.frame(results2)
+
+# add variable on type1 errors
+library(magrittr)
+results2 <- results2 %>%
+            dplyr::mutate(typeone = mu > lb & mu < ub)
+```
+
+# 3. Plot
+Create a plot that demonstrates the following
+
+>"A replication of the procedure that generates a 95% confidence interval that is centered around the sample mean would cover the population value at 
+    least 95 out of 100 times" [(Neyman, 1934)](https://www.google.nl/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0ahUKEwjk4LaD6LrXAhUGC8AKHdATBhMQFggoMAA&url=http%3A%2F%2Fwww.stat.cmu.edu%2F~brian%2F905-2008%2Fpapers%2Fneyman-1934-jrss.pdf&usg=AOvVaw3KRw9DSklPihrYIM0_zRrC)
+    
+```{r}
+library(ggplot2)
+ggplot(data = results2, aes(x = 1:100, y = Mean, color = typeone)) + 
+  geom_pointrange(aes(ymin = lb, ymax = ub)) +
+  xlab("Sample mean + 95% CI") +
+  ylab("Samples 1:100") +
+  theme_minimal()
+```
+
+# 4. Table
+Present a table containing all simulated samples for which the resulting confidence interval does 
+not contain the population value.
+
+```{r}
+library(knitr)
+library(kableExtra)
+kable(results2[!results2$typeone, -6], caption = "Samles containing a Type 1 error") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
